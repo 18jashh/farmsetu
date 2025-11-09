@@ -81,12 +81,15 @@ WSGI_APPLICATION = "farmsetu_weather.wsgi.application"
 ASGI_APPLICATION = "farmsetu_weather.asgi.application"
 
 # Database
-# For development use SQLite; will work out of the box. Can be swapped for PostgreSQL later.
+# Use PostgreSQL if DATABASE_URL is set (production/Render), otherwise SQLite (development)
+import dj_database_url
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # Password validation
