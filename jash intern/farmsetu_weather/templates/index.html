@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FarmSetu Weather Analytics</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>" />
+  <!-- Load Chart.js (removed integrity attribute which was blocking script load and causing chart failure) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        --primary: #2563eb;
+        --primary-dark: #1e40af;
+        --success: #10b981;
+        --bg-light: #f8fafc;
+        --bg-white: #ffffff;
+        --text-dark: #1e293b;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+        color: var(--text-dark);
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .header {
+        text-align: center;
+        color: white;
+        margin-bottom: 2rem;
+      }
+      .header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+      .header p {
+        font-size: 1.1rem;
+        opacity: 0.95;
+      }
+      .card {
+        background: var(--bg-white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-lg);
+        margin-bottom: 1.5rem;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+      }
+      .form-group label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-dark);
+      }
+      .form-group select {
+        padding: 0.625rem 1rem;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        font-size: 1rem;
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .form-group select:hover {
+        border-color: var(--primary);
+      }
+      .form-group select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+      .btn {
+        padding: 0.75rem 1.5rem;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: var(--shadow-sm);
+      }
+      .btn:hover {
+        background: var(--primary-dark);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+      }
+      .btn:active {
+        transform: translateY(0);
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.25rem;
+        border-radius: 10px;
+        box-shadow: var(--shadow-md);
+      }
+      .stat-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+      }
+      .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 1rem;
+      }
+      .loading {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-muted);
+        font-size: 1.125rem;
+      }
+      .spinner {
+        border: 3px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .info-box {
+        background: var(--bg-light);
+        border-left: 4px solid var(--success);
+        padding: 1rem;
+        border-radius: 6px;
+        margin-top: 1rem;
+      }
+      .info-box p {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        line-height: 1.6;
+      }
+      .info-box code {
+        background: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        color: var(--primary);
+        border: 1px solid var(--border);
+      }
+      @media (max-width: 768px) {
+        .header h1 { font-size: 2rem; }
+        .controls { grid-template-columns: 1fr; }
+        .chart-container { height: 300px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🌦️ FarmSetu Weather Analytics</h1>
+        <p>UK MetOffice Climate Data Visualization Platform</p>
+      </div>
+
+      <div class="card">
+        <div class="controls">
+          <div class="form-group">
+            <label for="parameterSelect">Parameter</label>
+            <select id="parameterSelect">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="regionSelect">Region</label>
+            <select id="regionSelect">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="columnSelect">Column</label>
+            <select id="columnSelect">
+              <option value="ann">Annual Average (ANN)</option>
+              <option value="jan">January</option>
+              <option value="feb">February</option>
+              <option value="mar">March</option>
+              <option value="apr">April</option>
+              <option value="may">May</option>
+              <option value="jun">June</option>
+              <option value="jul">July</option>
+              <option value="aug">August</option>
+              <option value="sep">September</option>
+              <option value="oct">October</option>
+              <option value="nov">November</option>
+              <option value="dec">December</option>
+              <option value="win">Winter</option>
+              <option value="spr">Spring</option>
+              <option value="sum">Summer</option>
+              <option value="aut">Autumn</option>
+            </select>
+          </div>
+          <div class="form-group" style="justify-content: flex-end;">
+            <label>&nbsp;</label>
+            <button class="btn" onclick="loadData()">📊 Update Chart</button>
+          </div>
+        </div>
+
+        <div id="statsContainer" class="stats-grid" style="display: none;">
+          <div class="stat-card">
+            <div class="stat-label">Average</div>
+            <div class="stat-value" id="avgValue">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Minimum</div>
+            <div class="stat-value" id="minValue">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Maximum</div>
+            <div class="stat-value" id="maxValue">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Records</div>
+            <div class="stat-value" id="countValue">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div id="loadingIndicator" class="loading">
+          <div class="spinner"></div>
+          <p>Loading data...</p>
+        </div>
+        <div class="chart-container" id="chartWrapper" style="display: none;">
+          <canvas id="avgChart"></canvas>
+        </div>
+        <div class="info-box">
+          <p><strong>💡 Quick Start:</strong> Import data using the management command:</p>
+          <p style="margin-top: 0.5rem;"><code>python manage.py import_metoffice https://www.metoffice.gov.uk/pub/data/weather/uk/climate/datasets/Tmax/date/UK.txt</code></p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Fallback dynamic loader in case initial CDN script was blocked
+      async function ensureChartJs() {
+        if (window.Chart) return;
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Chart.js failed to load'));
+          document.head.appendChild(s);
+        });
+      }
+      let chartInstance = null;
+
+      async function fetchDistinctValues() {
+        try {
+          const res = await fetch('/api/records/?page_size=10000');
+          if (!res.ok) return { parameters: [], regions: [] };
+          const data = await res.json();
+          const results = data.results || [];
+          
+          const parameters = [...new Set(results.map(r => r.parameter))].sort();
+          const regions = [...new Set(results.map(r => r.region))].sort();
+          
+          return { parameters, regions };
+        } catch (e) {
+          console.error('Failed to fetch distinct values:', e);
+          return { parameters: [], regions: [] };
+        }
+      }
+
+      async function populateSelects() {
+        const { parameters, regions } = await fetchDistinctValues();
+        
+        const paramSelect = document.getElementById('parameterSelect');
+        const regionSelect = document.getElementById('regionSelect');
+        
+        if (parameters.length) {
+          paramSelect.innerHTML = parameters.map(p => 
+            `<option value="${p}" ${p === 'Tmax' ? 'selected' : ''}>${p}</option>`
+          ).join('');
+        } else {
+          paramSelect.innerHTML = '<option value="">No data imported</option>';
+        }
+        
+        if (regions.length) {
+          regionSelect.innerHTML = regions.map(r => 
+            `<option value="${r}" ${r === 'UK' ? 'selected' : ''}>${r}</option>`
+          ).join('');
+        } else {
+          regionSelect.innerHTML = '<option value="">No data imported</option>';
+        }
+      }
+
+      async function fetchChartData(parameter, region, column) {
+        const url = `/api/records/filter/?parameter=${encodeURIComponent(parameter)}&region=${encodeURIComponent(region)}&column=${encodeURIComponent(column)}&page_size=5000`;
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        const data = await res.json();
+        const results = Array.isArray(data.results) ? data.results : data;
+        return results.sort((a, b) => a.year - b.year);
+      }
+
+      async function fetchStats(parameter, region) {
+        const url = `/api/stats/?parameter=${encodeURIComponent(parameter)}&region=${encodeURIComponent(region)}`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return await res.json();
+      }
+
+      async function loadData() {
+        const parameter = document.getElementById('parameterSelect').value;
+        const region = document.getElementById('regionSelect').value;
+        const column = document.getElementById('columnSelect').value;
+
+        if (!parameter || !region) {
+          alert('Please select both parameter and region');
+          return;
+        }
+
+        document.getElementById('loadingIndicator').style.display = 'block';
+        document.getElementById('chartWrapper').style.display = 'none';
+        document.getElementById('statsContainer').style.display = 'none';
+
+        try {
+          const [records, stats] = await Promise.all([
+            fetchChartData(parameter, region, column),
+            fetchStats(parameter, region)
+          ]);
+
+          if (stats) {
+            document.getElementById('avgValue').textContent = stats.avg ? stats.avg.toFixed(2) : '--';
+            document.getElementById('minValue').textContent = stats.min ? stats.min.toFixed(2) : '--';
+            document.getElementById('maxValue').textContent = stats.max ? stats.max.toFixed(2) : '--';
+            document.getElementById('countValue').textContent = stats.count || 0;
+            document.getElementById('statsContainer').style.display = 'grid';
+          }
+
+          // Ensure Chart.js before rendering
+          await ensureChartJs();
+          if (!window.Chart) throw new Error('Chart.js unavailable');
+          renderChart(records, parameter, region, column);
+          
+          document.getElementById('loadingIndicator').style.display = 'none';
+          document.getElementById('chartWrapper').style.display = 'block';
+        } catch (error) {
+          console.error('Error loading data:', error);
+          const msg = (error && error.message) ? error.message : 'Failed to load data. Please try again.';
+          document.getElementById('loadingIndicator').innerHTML = `<p style="color:#ef4444;">${msg}</p>`;
+        }
+      }
+
+      function renderChart(records, parameter, region, column) {
+        const ctx = document.getElementById('avgChart');
+        if (!ctx) return;
+
+        if (chartInstance) {
+          chartInstance.destroy();
+        }
+
+        const labels = records.map(r => r.year);
+        const values = records.map(r => r.value);
+
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: `${parameter} - ${region} (${column.toUpperCase()})`,
+              data: values,
+              borderColor: '#667eea',
+              backgroundColor: 'rgba(102, 126, 234, 0.1)',
+              borderWidth: 2,
+              tension: 0.3,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              pointBackgroundColor: '#667eea',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              fill: true,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false,
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  font: { size: 14, weight: '600' },
+                  color: '#1e293b',
+                  padding: 15,
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                padding: 12,
+                titleFont: { size: 14, weight: 'bold' },
+                bodyFont: { size: 13 },
+                cornerRadius: 8,
+                displayColors: false,
+              }
+            },
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: 'Year',
+                  font: { size: 14, weight: '600' },
+                  color: '#475569'
+                },
+                grid: { display: false },
+                ticks: { color: '#64748b' }
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: 'Value',
+                  font: { size: 14, weight: '600' },
+                  color: '#475569'
+                },
+                grid: { color: '#f1f5f9' },
+                ticks: { color: '#64748b' }
+              }
+            }
+          }
+        });
+      }
+
+      // Initialize on page load
+      (async function init() {
+        await populateSelects();
+        await loadData();
+      })();
+    </script>
+  </body>
+</html>
